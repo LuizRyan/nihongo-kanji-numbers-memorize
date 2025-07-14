@@ -96,6 +96,19 @@
       pointer-events: none;
       z-index: 2000;
     }
+
+    /* Container volume */
+    #volume-container {
+      margin-top: 12px;
+    }
+    #volume-label {
+      font-weight: 600;
+      margin-bottom: 4px;
+      display: block;
+    }
+    #volume-slider {
+      width: 100%;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-gray-100 flex items-center justify-center p-4 relative">
@@ -141,6 +154,13 @@
           <option value="100">1 - 100</option>
         </select>
       </div>
+
+      <!-- Controle de volume -->
+      <div id="volume-container">
+        <label id="volume-label" for="volume-slider">Volume:</label>
+        <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5" />
+      </div>
+
     </div>
   </div>
 
@@ -168,7 +188,8 @@
         rangeLabel: "Intervalo:",
         langToggle: "English",
         darkToggle: "Modo Noturno",
-        darkToggleActive: "Modo Claro"
+        darkToggleActive: "Modo Claro",
+        volumeLabel: "Volume:"
       },
       en: {
         title: "Japanese Numbers Training",
@@ -184,7 +205,8 @@
         rangeLabel: "Range:",
         langToggle: "Português",
         darkToggle: "Dark Mode",
-        darkToggleActive: "Light Mode"
+        darkToggleActive: "Light Mode",
+        volumeLabel: "Volume:"
       }
     };
 
@@ -243,6 +265,8 @@
     const darkToggleBtn = document.getElementById("dark-toggle");
     const soundCorrect = document.getElementById("sound-correct");
     const soundWrong = document.getElementById("sound-wrong");
+    const volumeSlider = document.getElementById("volume-slider");
+    const volumeLabel = document.getElementById("volume-label");
 
     // Estado
     let currentLang = "pt";
@@ -252,6 +276,10 @@
     let total = 0;
     let used = [];
     let locked = false; // trava para não clicar várias vezes
+
+    // Define volume inicial
+    soundCorrect.volume = volumeSlider.value;
+    soundWrong.volume = volumeSlider.value;
 
     // Função para embaralhar
     function shuffle(array) {
@@ -358,8 +386,6 @@
     }
 
     function hexToRgb(h) {
-      // h é string hsl(x,100%,60%), converte para rgb simplificado
-      // Para simplificar, retornamos valores fixos só pra exemplo
       return "255, 100, 50";
     }
 
@@ -424,8 +450,8 @@
 
       modeLabel.textContent = texts[currentLang].modeLabel;
       rangeLabel.textContent = texts[currentLang].rangeLabel;
+      volumeLabel.textContent = texts[currentLang].volumeLabel;
 
-      // Atualizar opções do select do modo
       modeSelect.options[0].text = texts[currentLang].modeOptions[0];
       modeSelect.options[1].text = texts[currentLang].modeOptions[1];
       modeSelect.options[2].text = texts[currentLang].modeOptions[2];
@@ -433,37 +459,39 @@
       updateScore();
     }
 
-    // Eventos de botões e selects
-    langToggleBtn.onclick = () => {
+    // Eventos
+
+    langToggleBtn.addEventListener("click", () => {
       currentLang = currentLang === "pt" ? "en" : "pt";
-      hits = 0;
-      total = 0;
-      used = [];
+      hits = 0; total = 0; used = [];
       updateLangTexts();
       newChallenge();
-    };
+    });
 
-    darkToggleBtn.onclick = () => {
+    darkToggleBtn.addEventListener("click", () => {
       darkMode = !darkMode;
-      document.body.classList.toggle("dark", darkMode);
+      if (darkMode) document.body.classList.add("dark");
+      else document.body.classList.remove("dark");
       updateLangTexts();
-    };
+    });
 
-    modeSelect.onchange = () => {
-      hits = 0;
-      total = 0;
-      used = [];
+    modeSelect.addEventListener("change", () => {
+      hits = 0; total = 0; used = [];
       updateScore();
       newChallenge();
-    };
+    });
 
-    rangeSelect.onchange = () => {
-      hits = 0;
-      total = 0;
-      used = [];
+    rangeSelect.addEventListener("change", () => {
+      hits = 0; total = 0; used = [];
       updateScore();
       newChallenge();
-    };
+    });
+
+    volumeSlider.addEventListener("input", () => {
+      const vol = parseFloat(volumeSlider.value);
+      soundCorrect.volume = vol;
+      soundWrong.volume = vol;
+    });
 
     // Inicialização
     updateLangTexts();
