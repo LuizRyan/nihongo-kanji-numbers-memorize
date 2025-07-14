@@ -69,7 +69,7 @@
     body.dark #score {
       color: #cccccc;
     }
-    body.dark label, body.dark select {
+    body.dark label, body.dark select, body.dark input[type="range"] {
       color: #cccccc;
       background-color: #2c2c2c;
       border-color: #444444;
@@ -97,17 +97,77 @@
       z-index: 2000;
     }
 
-    /* Container volume */
+    /* Posicionamento do volume no canto inferior direito */
     #volume-container {
-      margin-top: 12px;
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      z-index: 1000;
+      background-color: rgba(255, 255, 255, 0.8);
+      padding: 10px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
+
+    body.dark #volume-container {
+      background-color: rgba(44, 44, 44, 0.9);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+    
     #volume-label {
       font-weight: 600;
-      margin-bottom: 4px;
-      display: block;
+      white-space: nowrap; /* Impede que o texto quebre */
+      color: #333;
     }
+
+    body.dark #volume-label {
+      color: #cccccc;
+    }
+
     #volume-slider {
-      width: 100%;
+      width: 120px; /* Ajuste a largura conforme necessário */
+      -webkit-appearance: none;
+      appearance: none;
+      height: 8px;
+      background: #ddd;
+      outline: none;
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+
+    body.dark #volume-slider {
+      background: #555;
+    }
+
+    #volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #a78bfa;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    body.dark #volume-slider::-webkit-slider-thumb {
+      background: #fbbf24;
+    }
+
+    #volume-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #a78bfa;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    body.dark #volume-slider::-moz-range-thumb {
+      background: #fbbf24;
     }
   </style>
 </head>
@@ -140,35 +200,21 @@
       </select>
 
       <div id="range-container">
-        <label id="range-label" class="block mb-1 font-semibold" for="range">Intervalo:</label>
-        <select id="range" class="w-full p-2 border rounded-md">
-          <option value="10">1 - 10</option>
-          <option value="20">1 - 20</option>
-          <option value="30">1 - 30</option>
-          <option value="40">1 - 40</option>
-          <option value="50">1 - 50</option>
-          <option value="60">1 - 60</option>
-          <option value="70">1 - 70</option>
-          <option value="80">1 - 80</option>
-          <option value="90">1 - 90</option>
-          <option value="100">1 - 100</option>
-        </select>
+        <label id="range-label" class="block mb-1 font-semibold" for="range-slider">Intervalo:</label>
+        <input type="range" id="range-slider" min="10" max="100" step="10" value="10" class="w-full p-2 border rounded-md" />
+        <div id="range-value" class="text-center mt-2 font-medium">1 - 10</div>
       </div>
-
-      <!-- Controle de volume -->
-      <div id="volume-container">
-        <label id="volume-label" for="volume-slider">Volume:</label>
-        <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5" />
-      </div>
-
     </div>
   </div>
 
-  <!-- Áudios locais -->
+  <div id="volume-container">
+    <label id="volume-label" for="volume-slider">Volume:</label>
+    <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.5" />
+  </div>
+
   <audio id="sound-correct" src="assets/correto-2.mp3" preload="auto"></audio>
   <audio id="sound-wrong" src="assets/erro.mp3" preload="auto"></audio>
 
-  <!-- Canvas para fogos -->
   <canvas id="fireworks-canvas"></canvas>
 
   <script>
@@ -199,7 +245,7 @@
         modeLabel: "Mode:",
         modeOptions: [
           "Counting with Kanji (三つ)",
-          "Normal Numeral (いち, に, さん)",
+          "Normal Numeral (ichi, ni, san)",
           "Mixed"
         ],
         rangeLabel: "Range:",
@@ -220,7 +266,10 @@
     for (let i = 1; i <= 100; i++) {
       let jp = "";
       let hira = "";
-      if (i <= 10) {
+      if (i === 100) { 
+        jp = "百";
+        hira = "ひゃく"; // Hiragana correto
+      } else if (i <= 10) {
         jp = baseNumbers[i - 1][0];
         hira = baseNumbers[i - 1][1];
       } else if (i < 20) {
@@ -258,7 +307,8 @@
     const optionsEl = document.getElementById("options");
     const rangeContainer = document.getElementById("range-container");
     const modeSelect = document.getElementById("mode");
-    const rangeSelect = document.getElementById("range");
+    const rangeSlider = document.getElementById("range-slider"); 
+    const rangeValueDisplay = document.getElementById("range-value"); 
     const modeLabel = document.getElementById("mode-label");
     const rangeLabel = document.getElementById("range-label");
     const langToggleBtn = document.getElementById("lang-toggle");
@@ -275,11 +325,28 @@
     let hits = 0;
     let total = 0;
     let used = [];
-    let locked = false; // trava para não clicar várias vezes
+    let locked = false; 
 
-    // Define volume inicial
-    soundCorrect.volume = volumeSlider.value;
-    soundWrong.volume = volumeSlider.value;
+    // Tenta tocar os sons uma vez na primeira interação para contornar políticas de autoplay
+    document.addEventListener('DOMContentLoaded', () => {
+        const tryPlaySounds = () => {
+            soundCorrect.volume = volumeSlider.value;
+            soundWrong.volume = volumeSlider.value;
+            // Tenta tocar um som silencioso ou muito curto para 'ativar' o áudio
+            soundCorrect.play().then(() => {
+                soundCorrect.pause();
+                soundCorrect.currentTime = 0;
+                console.log("Sons pré-carregados e ativados.");
+                document.removeEventListener('click', tryPlaySounds);
+            }).catch(e => {
+                console.warn("Não foi possível tocar sons automaticamente (provavelmente bloqueado pelo navegador).", e);
+            });
+        };
+        // Adiciona um listener para a primeira interação do usuário
+        document.addEventListener('click', tryPlaySounds, { once: true });
+        document.addEventListener('keydown', tryPlaySounds, { once: true });
+    });
+
 
     // Função para embaralhar
     function shuffle(array) {
@@ -293,34 +360,49 @@
     // Obter pool de opções de acordo com modo e intervalo
     function getPool() {
       const mode = modeSelect.value;
-      const range = parseInt(rangeSelect.value);
       let pool = [];
-      if (mode === "kanji") pool = dataKanji;
-      else if (mode === "normal") pool = extendedNumbers.slice(0, range);
-      else pool = [...dataKanji, ...extendedNumbers.slice(0, range)];
+
+      if (mode === "kanji") {
+        pool = dataKanji;
+        rangeContainer.style.display = "none"; 
+      } else if (mode === "normal") {
+        const range = parseInt(rangeSlider.value);
+        pool = extendedNumbers.slice(0, range);
+        rangeContainer.style.display = "block"; 
+      } else { // Ambos
+        pool = [...dataKanji, ...extendedNumbers]; 
+        rangeContainer.style.display = "none"; 
+      }
 
       return pool.map(item => {
         let tipo = "";
         if (mode === "ambos") {
-          tipo = extendedNumbers.some(e => e.num === item.num) ? "☥" : "⸸";
+          const isKanjiCounting = dataKanji.some(k => k.num === item.num && k.jp === item.jp);
+          tipo = isKanjiCounting ? "⸸" : "☥"; 
         }
         return { ...item, tipo };
       });
     }
 
+    // Atualiza o display do valor do slider de intervalo
+    function updateRangeDisplay() {
+      const range = parseInt(rangeSlider.value);
+      rangeValueDisplay.textContent = `1 - ${range}`;
+    }
+
     // Começa novo desafio
     function newChallenge() {
       locked = false;
-      const mode = modeSelect.value;
-      rangeContainer.style.display = (mode === "kanji") ? "none" : "block";
-
+      
       let pool = getPool();
-      const remaining = pool.filter(item => !used.includes(item.jp));
+      // Filtra números que ainda não foram usados no ciclo atual
+      let remaining = pool.filter(item => !used.includes(item.jp)); 
+
       if (remaining.length === 0) {
-        used = [];
-        newChallenge();
-        return;
+        used = []; // Reseta os números usados se todos foram mostrados
+        remaining = pool; // Todos os números voltam a estar disponíveis
       }
+      
       current = remaining[Math.floor(Math.random() * remaining.length)];
 
       jpNumberEl.textContent = current.jp;
@@ -329,8 +411,11 @@
       feedbackEl.textContent = "";
 
       const correct = current.hira;
-      const distractors = shuffle(getPool().filter(e => e.hira && e.hira !== correct)).slice(0, 3).map(e => e.hira);
-      const options = shuffle([correct, ...distractors]);
+      const distractors = shuffle(pool.filter(e => e.hira !== correct))
+                              .slice(0, 3)
+                              .map(e => e.hira);
+      
+      const options = shuffle([...new Set([correct, ...distractors])]); 
 
       optionsEl.innerHTML = "";
       options.forEach(opt => {
@@ -347,11 +432,11 @@
       scoreEl.innerHTML = `${texts[currentLang].score}: <strong>${hits}/${total}</strong>`;
     }
 
-    // Efeito simples de fogos
+    // Efeito de fogos de artifício
     const canvas = document.getElementById("fireworks-canvas");
     const ctx = canvas.getContext("2d");
-    let fireworks = [];
-    let animationFrameId;
+    let activeFireworks = []; 
+    let animationFrameId = null; 
 
     function resizeCanvas() {
       canvas.width = window.innerWidth;
@@ -360,56 +445,111 @@
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
-    class Firework {
-      constructor(x, y) {
-        this.x = x;
-        this.y = y;
-        this.radius = 0;
-        this.maxRadius = 50 + Math.random() * 30;
-        this.color = `hsl(${Math.random() * 360}, 100%, 60%)`;
-        this.alpha = 1;
-      }
-      draw() {
-        ctx.beginPath();
-        ctx.strokeStyle = `rgba(${hexToRgb(this.color)},${this.alpha})`;
-        ctx.lineWidth = 2;
-        ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
-        ctx.stroke();
-      }
-      update() {
-        this.radius += 2;
-        this.alpha -= 0.03;
-      }
-      done() {
-        return this.alpha <= 0;
-      }
+    class Particle {
+        constructor(x, y, color, velocityX, velocityY) {
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            this.radius = Math.random() * 2 + 1;
+            this.velocity = {
+                x: velocityX || (Math.random() - 0.5) * 8, 
+                y: velocityY || (Math.random() - 0.5) * 8
+            };
+            this.alpha = 1;
+            this.friction = 0.98;
+            this.gravity = 0.1;
+        }
+
+        draw() {
+            ctx.save();
+            ctx.globalAlpha = this.alpha;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+            ctx.fillStyle = this.color;
+            ctx.fill();
+            ctx.restore();
+        }
+
+        update() {
+            this.velocity.x *= this.friction;
+            this.velocity.y *= this.friction;
+            this.velocity.y += this.gravity;
+            this.x += this.velocity.x;
+            this.y += this.velocity.y;
+            this.alpha -= 0.02; 
+            if (this.alpha < 0) this.alpha = 0;
+        }
     }
 
-    function hexToRgb(h) {
-      return "255, 100, 50";
+    class Firework {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.hue = Math.random() * 360; 
+            this.particles = [];
+            this.createExplosion();
+        }
+
+        createExplosion() {
+            const numParticles = 80; 
+            for (let i = 0; i < numParticles; i++) {
+                const angle = Math.PI * 2 * (i / numParticles);
+                const speed = Math.random() * 6 + 2; 
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                this.particles.push(new Particle(this.x, this.y, `hsl(${this.hue}, 100%, 50%)`, vx, vy));
+            }
+        }
+
+        draw() {
+            this.particles.forEach(particle => particle.draw());
+        }
+
+        update() {
+            this.particles.forEach((particle, index) => {
+                particle.update();
+                if (particle.alpha <= 0) {
+                    this.particles.splice(index, 1);
+                }
+            });
+        }
+
+        done() {
+            return this.particles.length === 0;
+        }
     }
+
 
     function animateFireworks() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      fireworks.forEach(fw => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height); 
+      activeFireworks.forEach(fw => {
         fw.update();
         fw.draw();
       });
-      fireworks = fireworks.filter(fw => !fw.done());
-      if (fireworks.length > 0) {
+      activeFireworks = activeFireworks.filter(fw => !fw.done()); 
+      
+      if (activeFireworks.length > 0) {
         animationFrameId = requestAnimationFrame(animateFireworks);
+      } else {
+        cancelAnimationFrame(animationFrameId); 
+        animationFrameId = null; 
+        ctx.clearRect(0, 0, canvas.width, canvas.height); 
       }
     }
 
     function launchFireworks() {
-      for (let i = 0; i < 5; i++) {
-        const x = Math.random() * window.innerWidth;
-        const y = Math.random() * window.innerHeight * 0.5 + window.innerHeight * 0.5;
-        fireworks.push(new Firework(x, y));
-      }
-      if (!animationFrameId) {
-        animateFireworks();
-      }
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+        activeFireworks = []; 
+
+        for (let i = 0; i < 2; i++) { 
+            const x = Math.random() * window.innerWidth;
+            const y = window.innerHeight * (0.3 + Math.random() * 0.4); 
+            activeFireworks.push(new Firework(x, y));
+        }
+        animateFireworks(); 
     }
 
     // Função para verificar resposta
@@ -424,22 +564,25 @@
         feedbackEl.textContent = texts[currentLang].correct;
         feedbackEl.className = "text-green-600";
         hits++;
-        used.push(current.jp);
+        used.push(current.jp); 
 
         soundCorrect.currentTime = 0;
-        soundCorrect.play();
+        soundCorrect.play().catch(e => console.error("Erro ao tocar som de acerto:", e));
 
-        launchFireworks();
+        launchFireworks(); 
 
       } else {
         feedbackEl.textContent = `${texts[currentLang].wrong} ${correct}`;
         feedbackEl.className = "text-red-600";
 
         soundWrong.currentTime = 0;
-        soundWrong.play();
+        soundWrong.play().catch(e => console.error("Erro ao tocar som de erro:", e));
       }
       updateScore();
-      setTimeout(newChallenge, 1500);
+      setTimeout(() => {
+        locked = false; 
+        newChallenge();
+      }, 1500);
     }
 
     // Atualiza textos de acordo com idioma
@@ -457,6 +600,7 @@
       modeSelect.options[2].text = texts[currentLang].modeOptions[2];
 
       updateScore();
+      updateRangeDisplay(); 
     }
 
     // Eventos
@@ -481,8 +625,9 @@
       newChallenge();
     });
 
-    rangeSelect.addEventListener("change", () => {
-      hits = 0; total = 0; used = [];
+    rangeSlider.addEventListener("input", () => {
+      updateRangeDisplay(); 
+      hits = 0; total = 0; used = []; 
       updateScore();
       newChallenge();
     });
