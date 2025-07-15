@@ -10,6 +10,9 @@
     #options button{transition:background .4s,color .4s;background:#a78bfa;color:#fff;font-weight:600;border-radius:.5rem;border:none;cursor:pointer}
     #options button:hover{background:linear-gradient(to right,#c084fc,#a78bfa)}
     #options button:focus{outline:3px solid #fbbf24}
+    /* Novo estilo para botões desabilitados */
+    #options button:disabled{opacity: 0.6; cursor: not-allowed;} 
+
     #lang-toggle,#dark-toggle{cursor:pointer;padding:6px 12px;border-radius:8px;font-weight:600;transition:.3s;background:#a78bfa;color:#fff;border:none;position:fixed;top:12px;z-index:1000}
     #lang-toggle{right:12px}
     #lang-toggle:hover{background:#7c3aed}
@@ -21,6 +24,9 @@
     body.dark #translation,body.dark #jp-number{color:#fbbf24}
     body.dark #options button{background:rgba(249,115,22,.85)!important}
     body.dark #options button:hover{background:linear-gradient(to right,rgba(249,115,22,1),rgba(234,88,12,1))!important}
+    /* Estilo para desabilitado no modo noturno */
+    body.dark #options button:disabled{background:rgba(249,115,22,.5)!important;} 
+
     #fireworks-canvas{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:2000}
     #volume-container{position:fixed;bottom:12px;right:12px;z-index:1000;background:rgba(255,255,255,.8);padding:10px 15px;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,.1);display:flex;align-items:center;gap:10px}
     body.dark #volume-container{background:rgba(44,44,44,.9);box-shadow:0 2px 10px rgba(0,0,0,.3)}
@@ -61,6 +67,7 @@
         <option value="ambos">Misto</option>
         <option value="dias">Dias da Semana</option>
         <option value="dias-do-mes">Dias do Mês</option>
+        <option value="horas">Horas do Dia</option>
       </select>
 
       <div id="range-container" class="mt-4">
@@ -95,7 +102,8 @@
           "Numeral Normal (いち, に, さん)",
           "Misto",
           "Dias da Semana",
-          "Dias do Mês"
+          "Dias do Mês",
+          "Horas do Dia" // Nova opção
         ],
         rangeLabel: "Intervalo:",
         langToggle: "English",
@@ -114,7 +122,8 @@
           "Normal Numeral (ichi, ni, san)",
           "Mixed",
           "Weekdays",
-          "Days of the Month"
+          "Days of the Month",
+          "Hours of the Day" // Nova opção
         ],
         rangeLabel: "Range:",
         langToggle: "Português",
@@ -144,8 +153,6 @@
           const r = i - 100;
           jp = "百"; hira = "ひゃく";
           addBelow100(r);
-        } else if (i >= 100) {
-          // já tratado
         } else addBelow100(i);
 
         function addBelow100(n) {
@@ -158,7 +165,7 @@
             hira += baseNumbers[d - 1][1] + "じゅう" + (u ? baseNumbers[u - 1][1] : "");
           } else if (n === 10) {
             jp += "十"; hira += "じゅう";
-          } else {
+          } else if (n > 0) {
             jp += baseNumbers[n - 1][0]; hira += baseNumbers[n - 1][1];
           }
         }
@@ -222,6 +229,34 @@
       }
     }
 
+    /* ---------- HORAS DO DIA ---------- */
+    const hoursOfDay = [
+      { jp: "一時", hira: "いちじ", num: "1:00" },
+      { jp: "二時", hira: "にじ", num: "2:00" },
+      { jp: "三時", hira: "さんじ", num: "3:00" },
+      { jp: "四時", hira: "よじ", num: "4:00" },
+      { jp: "五時", hira: "ごじ", num: "5:00" },
+      { jp: "六時", hira: "ろくじ", num: "6:00" },
+      { jp: "七時", hira: "しちじ", num: "7:00" },
+      { jp: "八時", hira: "はちじ", num: "8:00" },
+      { jp: "九時", hira: "くじ", num: "9:00" },
+      { jp: "十時", hira: "じゅうじ", num: "10:00" },
+      { jp: "十一時", hira: "じゅういちじ", num: "11:00" },
+      { jp: "十二時", hira: "じゅうにじ", num: "12:00" },
+      { jp: "一時半", hira: "いちじはん", num: "1:30" },
+      { jp: "二時半", hira: "にじはん", num: "2:30" },
+      { jp: "三時半", hira: "さんじはん", num: "3:30" },
+      { jp: "四時半", hira: "よじはん", num: "4:30" },
+      { jp: "五時半", hira: "ごじはん", num: "5:30" },
+      { jp: "六時半", hira: "ろくじはん", num: "6:30" },
+      { jp: "七時半", hira: "しちじはん", num: "7:30" },
+      { jp: "八時半", hira: "はちじはん", num: "8:30" },
+      { jp: "九時半", hira: "くじはん", num: "9:30" },
+      { jp: "十時半", hira: "じゅうじはん", num: "10:30" },
+      { jp: "十一時半", hira: "じゅういちじはん", num: "11:30" },
+      { jp: "十二時半", hira: "じゅうにじはん", num: "12:30" }
+    ];
+
     /* ---------- DOM ELEMENTS ---------- */
     const translationEl = document.getElementById("translation");
     const jpNumberEl     = document.getElementById("jp-number");
@@ -259,14 +294,17 @@
     }
 
     function buildPool(){
-      if(currentMode==="kanji")            return [...dataKanji];
-      if(currentMode==="normal")           return [...extendedNumbers.filter(e=>e.num<=maxRange)];
-      if(currentMode==="ambos")            return [...dataKanji,...extendedNumbers.filter(e=>e.num<=maxRange)];
-      if(currentMode==="dias")             return [...daysOfWeek];
-      return [...daysOfMonth]; // dias-do-mes
+      if(currentMode==="kanji") return [...dataKanji];
+      if(currentMode==="normal") return extendedNumbers.filter(e=>e.num<=maxRange);
+      if(currentMode==="ambos") return [...dataKanji,...extendedNumbers.filter(e=>e.num<=maxRange)];
+      if(currentMode==="dias") return [...daysOfWeek];
+      if(currentMode==="dias-do-mes") return [...daysOfMonth];
+      if(currentMode==="horas") return [...hoursOfDay]; // Adicionado modo de horas
+      return []; // fallback
     }
 
     function selectNext(){
+      // A chave agora considera também o modo para reconstruir o pool
       const key=currentMode+(currentMode==="normal"||currentMode==="ambos"?`-${maxRange}`:"");
       if(key!==lastPoolKey||questionPool.length===0){
         questionPool=shuffle(buildPool());
@@ -284,7 +322,12 @@
     function translateUI(){
       document.title=texts[currentLang].title;
       scoreEl.innerHTML=`${texts[currentLang].score}: <strong>${score}/${totalQuestions}</strong>`;
-      texts[currentLang].modeOptions.forEach((t,i)=>modeSelect.options[i].text=t);
+      // Garante que todas as opções sejam atualizadas, incluindo a nova
+      texts[currentLang].modeOptions.forEach((t,i)=> {
+        if (modeSelect.options[i]) { // Verifica se a opção existe
+            modeSelect.options[i].text=t;
+        }
+      });
       document.querySelector("label[for='mode']").textContent=texts[currentLang].modeLabel;
       document.querySelector("label[for='range-slider']").textContent=texts[currentLang].rangeLabel;
       langToggle.textContent=texts[currentLang].langToggle;
@@ -330,10 +373,14 @@
         translationEl.textContent=currentNumber.num;
         jpNumberEl.textContent=currentNumber.jp;
         optsPool=daysOfWeek.filter(e=>e.hira!==currentNumber.hira).map(e=>e.hira);
-      }else{
+      }else if(currentMode==="dias-do-mes"){
         translationEl.textContent=currentNumber.num[currentLang];
         jpNumberEl.textContent=currentNumber.jp;
         optsPool=daysOfMonth.filter(e=>e.hira!==currentNumber.hira).map(e=>e.hira);
+      } else if (currentMode === "horas") { // Novo modo de horas
+        translationEl.textContent = currentNumber.num;
+        jpNumberEl.textContent = currentNumber.jp;
+        optsPool = hoursOfDay.filter(e => e.hira !== currentNumber.hira).map(e => e.hira);
       }
 
       const options=getOptions(currentNumber.hira,optsPool);
@@ -342,10 +389,35 @@
 
     function getOptions(correct, pool, n=4){
       const set=new Set([correct]);
-      while(set.size<n && pool.length){
-        set.add(pool[Math.floor(Math.random()*pool.length)]);
+      // Cria uma cópia do pool para manipular sem afetar o original
+      let tempPool = [...pool]; 
+      while(set.size < n && tempPool.length > 0){
+        // Pega uma opção aleatória do pool temporário e a remove
+        const randomIndex = Math.floor(Math.random() * tempPool.length);
+        const optionToAdd = tempPool.splice(randomIndex, 1)[0]; 
+        set.add(optionToAdd);
+      }
+      // Se ainda não tiver N opções (ex: 4), e o pool original permitir, adiciona mais
+      // Isso pode acontecer se o tempPool ficar vazio antes de atingir N opções
+      while (set.size < n) {
+          const opt = pool[Math.floor(Math.random() * pool.length)]; // Pega do pool original
+          set.add(opt);
       }
       return Array.from(set).sort(()=>Math.random()-0.5);
+    }
+
+    // Função para desabilitar todos os botões de opção
+    function disableOptions() {
+        Array.from(optionsEl.children).forEach(button => {
+            button.disabled = true;
+        });
+    }
+
+    // Função para habilitar todos os botões de opção
+    function enableOptions() {
+        Array.from(optionsEl.children).forEach(button => {
+            button.disabled = false;
+        });
     }
 
     function renderOptions(list, correct){
@@ -355,16 +427,23 @@
         b.textContent=txt;
         b.type="button";
         b.onclick=()=>{
+          disableOptions(); // Desabilita os botões imediatamente após o clique
           if(txt===correct){
             score++; feedbackEl.textContent=texts[currentLang].correct; play("correct");
           }else{
             feedbackEl.textContent=`${texts[currentLang].wrong} ${correct}`; play("wrong");
           }
           scoreEl.innerHTML=`${texts[currentLang].score}: <strong>${score}/${totalQuestions}</strong>`;
-          setTimeout(displayQuestion,800);
+          
+          // Adiciona o delay aqui
+          setTimeout(() => {
+            displayQuestion();
+            enableOptions(); // Habilita os botões novamente após a nova pergunta ser exibida
+          }, 1200); // Delay de 1.2 segundos
         };
         optionsEl.appendChild(b);
       });
+      enableOptions(); // Garante que os botões estejam habilitados quando a pergunta é exibida pela primeira vez
     }
 
     function play(type){
@@ -374,6 +453,7 @@
       snd.play();
 
       if(type==="correct"&&document.body.classList.contains("dark")){
+        // Lança fogos de artifício ao acertar no modo noturno
         for(let i=0;i<6;i++){
           const x=innerWidth/2+(Math.random()-0.5)*300;
           const y=innerHeight/2+(Math.random()-0.5)*300;
@@ -387,68 +467,144 @@
       currentMode=modeSelect.value;
       score=totalQuestions=0;
       translateUI();
-      rangeContainer.style.display=currentMode==="normal"?"block":"none";
-      displayQuestion();
+      // Atualiza a visibilidade do range container
+      rangeContainer.style.display=(currentMode==="normal"||currentMode==="ambos")?"block":"none";
+      initAndDisplay(); // Inicializa e exibe a nova pergunta
     };
+
     rangeSlider.oninput=()=>{
       maxRange=parseInt(rangeSlider.value);
       rangeValue.textContent=`1 - ${maxRange}`;
       score=totalQuestions=0;
-      displayQuestion();
+      initAndDisplay(); // Inicializa e exibe a nova pergunta
     };
+
     langToggle.onclick=()=>{
       currentLang=currentLang==="pt"?"en":"pt";
       translateUI();
-      displayQuestion();
+      initAndDisplay(); // Inicializa e exibe a nova pergunta
     };
+
     darkToggle.onclick=()=>{
       document.body.classList.toggle("dark");
       translateUI();
     };
+
     volumeSlider.oninput=()=>{volume=parseFloat(volumeSlider.value);};
 
-    /* ---------- INÍCIO ---------- */
-    translateUI();
-    rangeContainer.style.display="none";
-    displayQuestion();
+    // Função para encapsular a inicialização da pool e exibição da pergunta
+    function initAndDisplay() {
+        questionPool = []; // Limpa a pool para forçar a reconstrução
+        usedIndex = 0;
+        lastPoolKey = ""; // Reseta a chave para garantir nova pool
+        displayQuestion();
+    }
+
 
     /* ---------- FOGOS ---------- */
     const canvas=document.getElementById("fireworks-canvas"),ctx=canvas.getContext("2d");
     window.onresize=()=>{canvas.width=innerWidth;canvas.height=innerHeight};
     window.onresize();
     let fireworks=[];
-    class Firework{
-      constructor(x,y){
-        this.p=[];
-        for(let i=0;i<40;i++){
-          this.p.push({x,y,a:Math.random()*2*Math.PI,speed:Math.random()*5+2,r:Math.random()*2+1,alpha:1,d:.02+Math.random()*0.03,color:`hsl(${Math.random()*360},100%,70%)`});
+
+    class Particle {
+        constructor(x, y, angle, speed, radius, alpha, decay, color) {
+            this.x = x;
+            this.y = y;
+            this.angle = angle;
+            this.speed = speed;
+            this.radius = radius;
+            this.alpha = alpha;
+            this.decay = decay;
+            this.color = color;
+        }
+
+        update() {
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed;
+            this.speed *= 0.95; // Desacelera a partícula
+            this.alpha -= this.decay; // Faz a partícula desaparecer
+            return this.alpha > 0;
+        }
+
+        draw(ctx) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+            // Convert HSL to RGBA for drawing
+            const [r, g, b] = hslToRgb(this.color);
+            ctx.fillStyle = `rgba(${r},${g},${b},${this.alpha})`;
+            ctx.fill();
+        }
+    }
+
+    class Firework {
+      constructor(x, y){
+        this.particles = [];
+        const numParticles = 40;
+        for(let i=0; i < numParticles; i++){
+          const angle = Math.random() * 2 * Math.PI;
+          const speed = Math.random() * 5 + 2;
+          const radius = Math.random() * 2 + 1;
+          const alpha = 1;
+          const decay = 0.02 + Math.random() * 0.03;
+          const color = `hsl(${Math.random() * 360}, 100%, 70%)`; // Cores variadas
+          this.particles.push(new Particle(x, y, angle, speed, radius, alpha, decay, color));
         }
       }
+
       update(){
-        this.p.forEach(o=>{
-          o.x+=Math.cos(o.a)*o.speed;
-          o.y+=Math.sin(o.a)*o.speed;
-          o.speed*=0.95;
-          o.alpha-=o.d;
-        });
-        this.p=this.p.filter(o=>o.alpha>0);
-        return this.p.length>0;
+        this.particles = this.particles.filter(p => p.update());
+        return this.particles.length > 0;
       }
-      draw(){
-        this.p.forEach(o=>{
-          ctx.beginPath();
-          ctx.arc(o.x,o.y,o.r,0,2*Math.PI);
-          const[r,g,b]=hslToRgb(o.color);
-          ctx.fillStyle=`rgba(${r},${g},${b},${o.alpha})`;
-          ctx.fill();
-        });
+
+      draw(ctx){
+        this.particles.forEach(p => p.draw(ctx));
       }
     }
-    function hslToRgb(h){const m=h.match(/\d+/g);if(!m)return[255,255,255];const H=+m[0],C=(1-Math.abs(2*(+m[2]/100)-1))*(+m[1]/100),X=C*(1-Math.abs((H/60)%2-1)),m0=(+m[2]/100)-C/2;let r=0,g=0,b=0;
-      if(H<60)[r,g]=[C,X];else if(H<120)[r,g]=[X,C];else if(H<180)[g,b]=[C,X];else if(H<240)[g,b]=[X,C];else if(H<300)[r,b]=[X,C];else[r,b]=[C,X];
-      return[Math.round((r+m0)*255),Math.round((g+m0)*255),Math.round((b+m0)*255)]}
-    function loop(){ctx.clearRect(0,0,canvas.width,canvas.height);fireworks=fireworks.filter(f=>f.update());fireworks.forEach(f=>f.draw());requestAnimationFrame(loop)}
-    loop();
+
+    // Função para converter HSL para RGB - ESSENCIAL PARA AS CORES FUNCIONAREM
+    function hslToRgb(hslString) {
+        const matches = hslString.match(/(\d+(\.\d+)?)/g);
+        if (!matches || matches.length < 3) return [255, 255, 255]; // Fallback white
+        
+        let h = parseFloat(matches[0]);
+        let s = parseFloat(matches[1]) / 100;
+        let l = parseFloat(matches[2]) / 100;
+
+        let c = (1 - Math.abs(2 * l - 1)) * s;
+        let x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        let m = l - c / 2;
+        let r = 0;
+        let g = 0;
+        let b = 0;
+
+        if (0 <= h && h < 60) {
+            r = c; g = x; b = 0;
+        } else if (60 <= h && h < 120) {
+            r = x; g = c; b = 0;
+        } else if (120 <= h && h < 180) {
+            r = 0; g = c; b = x;
+        } else if (180 <= h && h < 240) {
+            r = 0; g = x; b = c;
+        } else if (240 <= h && h < 300) {
+            r = x; g = 0; b = c;
+        } else if (300 <= h && h < 360) {
+            r = c; g = 0; b = x;
+        }
+        r = Math.round((r + m) * 255);
+        g = Math.round((g + m) * 255);
+        b = Math.round((b + m) * 255);
+
+        return [r, g, b];
+    }
+
+    function loop(){
+      ctx.clearRect(0,0,canvas.width,canvas.height); // Limpa o canvas
+      fireworks = fireworks.filter(f => f.update()); // Atualiza e remove fogos "mortos"
+      fireworks.forEach(f => f.draw(ctx)); // Desenha os fogos restantes
+      requestAnimationFrame(loop); // Continua o loop
+    }
+    loop(); // Inicia o loop da animação
   </script>
 </body>
 </html>
