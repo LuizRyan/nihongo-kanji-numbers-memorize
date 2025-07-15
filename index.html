@@ -54,7 +54,7 @@
     <p id="feedback" class="text-center text-lg font-medium"></p>
 
     <div class="mt-6">
-      <label id="mode-label" class="block mb-1 font-semibold" for="mode">Modo:</label>
+      <label class="block mb-1 font-semibold" for="mode">Modo:</label>
       <select id="mode">
         <option value="kanji">Contagem com Kanji (三つ)</option>
         <option value="normal">Numeral Normal (いち, に, さん)</option>
@@ -64,8 +64,8 @@
       </select>
 
       <div id="range-container" class="mt-4">
-        <label id="range-label" class="block mb-1 font-semibold" for="range-slider">Intervalo:</label>
-        <input type="range" id="range-slider" min="10" max="1000" step="10" value="10" class="w-full p-2 border rounded-md" />
+        <label class="block mb-1 font-semibold" for="range-slider">Intervalo:</label>
+        <input type="range" id="range-slider" min="10" max="200" step="10" value="10" class="w-full p-2 border rounded-md" />
         <div id="range-value" class="text-center mt-2 font-medium">1 - 10</div>
       </div>
     </div>
@@ -130,19 +130,22 @@
       ["六", "ろく"], ["七", "なな"], ["八", "はち"], ["九", "きゅう"], ["十", "じゅう"]
     ];
 
-    /* ---------- NÚMEROS 1‑1000 (modo normal) ---------- */
-    function buildNumbersUpTo1000() {
+    /* ---------- NÚMEROS 1‑200 (modo normal) ---------- */
+    function buildNumbersUpTo200() {
       const nums = [];
-      for (let i = 1; i <= 1000; i++) {
+      for (let i = 1; i <= 200; i++) {
         let jp = "", hira = "";
 
-        if (i === 1000) {
-          jp = "千"; hira = "せん";
+        if (i === 200) {
+          jp = "二百"; hira = "にひゃく";
+        } else if (i === 100) {
+          jp = "百"; hira = "ひゃく";
+        } else if (i > 100) {
+          const r = i - 100;
+          jp = "百"; hira = "ひゃく";
+          addBelow100(r);
         } else if (i >= 100) {
-          const c = Math.floor(i / 100), r = i % 100;
-          jp += (c === 1 ? "" : baseNumbers[c - 1][0]) + "百";
-          hira += (c === 1 ? "" : baseNumbers[c - 1][1]) + "ひゃく";
-          if (r) addBelow100(r);
+          // já tratado
         } else addBelow100(i);
 
         function addBelow100(n) {
@@ -163,7 +166,7 @@
       }
       return nums;
     }
-    const extendedNumbers = buildNumbersUpTo1000();
+    const extendedNumbers = buildNumbersUpTo200();
 
     /* ---------- CONTADOR KANJI (一つ…) ---------- */
     const dataKanji = [
@@ -193,21 +196,15 @@
     /* ---------- DIAS DO MÊS 1‑31 ---------- */
     const daysOfMonth = [];
     for (let d = 1; d <= 31; d++) {
-      // kanji do número + 日
       const jpKanji = extendedNumbers.find(e => e.num === d)?.jp || d.toString();
       const jpDay = jpKanji + "日";
-
-      // leitura (hiragana)
       const special = {
         1:"ついたち",2:"ふつか",3:"みっか",4:"よっか",5:"いつか",6:"むいか",7:"なのか",8:"ようか",
         9:"ここのか",10:"とおか",14:"じゅうよっか",20:"はつか",24:"にじゅうよっか"
       };
       const hiraDay = special[d] || (extendedNumbers.find(e=>e.num===d)?.hira + "にち");
-
-      // tradução PT / EN
       const ptLabel = `dia ${d}º`;
       const enLabel = `${d}${ordinalSuffixEN(d)} day`;
-
       daysOfMonth.push({
         jp: jpDay,
         hira: hiraDay,
@@ -225,7 +222,7 @@
       }
     }
 
-    /* ---------- DOM ---------- */
+    /* ---------- DOM ELEMENTS ---------- */
     const translationEl = document.getElementById("translation");
     const jpNumberEl     = document.getElementById("jp-number");
     const optionsEl      = document.getElementById("options");
@@ -248,59 +245,107 @@
     let score = 0, totalQuestions = 0;
     let volume = 0.5, maxRange = 10;
 
-    /* ---------- UI --------- */
-    function translateUI() {
-      document.title = texts[currentLang].title;
-      scoreEl.innerHTML = `${texts[currentLang].score}: <strong>${score}/${totalQuestions}</strong>`;
-      texts[currentLang].modeOptions.forEach((txt,i)=>modeSelect.options[i].text=txt);
-      document.querySelector("label[for='mode']").textContent   = texts[currentLang].modeLabel;
-      document.querySelector("label[for='range-slider']").textContent = texts[currentLang].rangeLabel;
-      langToggle.textContent = texts[currentLang].langToggle;
-      darkToggle.textContent = document.body.classList.contains("dark")
-        ? texts[currentLang].darkToggleActive : texts[currentLang].darkToggle;
-      document.getElementById("volume-label").textContent = texts[currentLang].volumeLabel;
-      rangeValue.textContent = `1 - ${maxRange}`;
+    /* ---------- NÃO REPETIR PERGUNTAS ---------- */
+    let questionPool = [];
+    let usedIndex = 0;
+    let lastPoolKey = "";
+
+    function shuffle(array){
+      for(let i=array.length-1;i>0;i--){
+        const j=Math.floor(Math.random()*(i+1));
+        [array[i],array[j]]=[array[j],array[i]];
+      }
+      return array;
     }
 
-    /* ---------- SELEÇÃO E EXIBIÇÃO ---------- */
+    function buildPool(){
+      if(currentMode==="kanji")            return [...dataKanji];
+      if(currentMode==="normal")           return [...extendedNumbers.filter(e=>e.num<=maxRange)];
+      if(currentMode==="ambos")            return [...dataKanji,...extendedNumbers.filter(e=>e.num<=maxRange)];
+      if(currentMode==="dias")             return [...daysOfWeek];
+      return [...daysOfMonth]; // dias-do-mes
+    }
+
     function selectNext(){
-      let pool=[];
-      if      (currentMode==="kanji")        pool=dataKanji;
-      else if (currentMode==="normal")       pool=extendedNumbers.filter(e=>e.num<=maxRange);
-      else if (currentMode==="ambos")        pool=[...dataKanji,...extendedNumbers.filter(e=>e.num<=maxRange)];
-      else if (currentMode==="dias")         pool=daysOfWeek;
-      else if (currentMode==="dias-do-mes")  pool=daysOfMonth;
-      return pool[Math.floor(Math.random()*pool.length)];
+      const key=currentMode+(currentMode==="normal"||currentMode==="ambos"?`-${maxRange}`:"");
+      if(key!==lastPoolKey||questionPool.length===0){
+        questionPool=shuffle(buildPool());
+        usedIndex=0;
+        lastPoolKey=key;
+      }
+      if(usedIndex>=questionPool.length){
+        questionPool=shuffle(buildPool());
+        usedIndex=0;
+      }
+      return questionPool[usedIndex++];
     }
 
-    function getOptions(correct, pool, n=4){
-      const set=new Set([correct]);
-      while(set.size<n) set.add(pool[Math.floor(Math.random()*pool.length)]);
-      return Array.from(set).sort(()=>Math.random()-0.5);
+    /* ---------- UI ---------- */
+    function translateUI(){
+      document.title=texts[currentLang].title;
+      scoreEl.innerHTML=`${texts[currentLang].score}: <strong>${score}/${totalQuestions}</strong>`;
+      texts[currentLang].modeOptions.forEach((t,i)=>modeSelect.options[i].text=t);
+      document.querySelector("label[for='mode']").textContent=texts[currentLang].modeLabel;
+      document.querySelector("label[for='range-slider']").textContent=texts[currentLang].rangeLabel;
+      langToggle.textContent=texts[currentLang].langToggle;
+      darkToggle.textContent=document.body.classList.contains("dark")?texts[currentLang].darkToggleActive:texts[currentLang].darkToggle;
+      document.getElementById("volume-label").textContent=texts[currentLang].volumeLabel;
+      rangeValue.textContent=`1 - ${maxRange}`;
+    }
+
+    /* ---------- GERAÇÃO DE ALTERNATIVAS ---------- */
+    function sameBandOptions(correct){
+      let bandMin=1,bandMax=10;
+      if(correct.num>=11&&correct.num<=99){bandMin=10;bandMax=99;}
+      else if(correct.num>=100){bandMin=100;bandMax=200;}
+      return extendedNumbers
+        .filter(e=>e.num>=bandMin && e.num<=bandMax && e.hira!==correct.hira)
+        .map(e=>e.hira);
     }
 
     function displayQuestion(){
-      currentNumber = selectNext();
+      currentNumber=selectNext();
       totalQuestions++;
       scoreEl.innerHTML=`${texts[currentLang].score}: <strong>${score}/${totalQuestions-1}</strong>`;
       feedbackEl.textContent="";
 
-      let optsPool;
-      if (currentMode==="normal"||currentMode==="kanji"||currentMode==="ambos"){
-        translationEl.textContent = currentNumber.num.toString();
-        jpNumberEl.textContent    = currentNumber.jp || currentNumber.hira;
-        optsPool = (currentMode==="kanji"?dataKanji:extendedNumbers).filter(e=>e.hira!==currentNumber.hira).map(e=>e.hira);
-      } else if (currentMode==="dias") {
-        translationEl.textContent = currentNumber.num;
-        jpNumberEl.textContent    = currentNumber.jp;
-        optsPool = daysOfWeek.filter(e=>e.hira!==currentNumber.hira).map(e=>e.hira);
-      } else { // dias-do-mes
-        translationEl.textContent = currentNumber.num[currentLang];
-        jpNumberEl.textContent    = currentNumber.jp;
-        optsPool = daysOfMonth.filter(e=>e.hira!==currentNumber.hira).map(e=>e.hira);
+      let optsPool=[];
+      if(currentMode==="kanji"){
+        translationEl.textContent=currentNumber.num.toString();
+        jpNumberEl.textContent=currentNumber.jp;
+        optsPool=dataKanji.filter(e=>e.hira!==currentNumber.hira).map(e=>e.hira);
+      }else if(currentMode==="normal"){
+        translationEl.textContent=currentNumber.num.toString();
+        jpNumberEl.textContent=currentNumber.jp;
+        optsPool=sameBandOptions(currentNumber);
+      }else if(currentMode==="ambos"){
+        translationEl.textContent=currentNumber.num.toString();
+        jpNumberEl.textContent=currentNumber.jp||currentNumber.hira;
+        if(currentNumber.num<=10){
+          optsPool=dataKanji.filter(e=>e.hira!==currentNumber.hira).map(e=>e.hira);
+        }else{
+          optsPool=sameBandOptions(currentNumber);
+        }
+      }else if(currentMode==="dias"){
+        translationEl.textContent=currentNumber.num;
+        jpNumberEl.textContent=currentNumber.jp;
+        optsPool=daysOfWeek.filter(e=>e.hira!==currentNumber.hira).map(e=>e.hira);
+      }else{
+        translationEl.textContent=currentNumber.num[currentLang];
+        jpNumberEl.textContent=currentNumber.jp;
+        optsPool=daysOfMonth.filter(e=>e.hira!==currentNumber.hira).map(e=>e.hira);
       }
+
       const options=getOptions(currentNumber.hira,optsPool);
       renderOptions(options,currentNumber.hira);
+    }
+
+    function getOptions(correct, pool, n=4){
+      const set=new Set([correct]);
+      while(set.size<n && pool.length){
+        set.add(pool[Math.floor(Math.random()*pool.length)]);
+      }
+      return Array.from(set).sort(()=>Math.random()-0.5);
     }
 
     function renderOptions(list, correct){
@@ -324,18 +369,42 @@
 
     function play(type){
       const snd=type==="correct"?soundCorrect:soundWrong;
-      snd.volume=volume; snd.currentTime=0; snd.play();
+      snd.volume=volume;
+      snd.currentTime=0;
+      snd.play();
+
+      if(type==="correct"&&document.body.classList.contains("dark")){
+        for(let i=0;i<6;i++){
+          const x=innerWidth/2+(Math.random()-0.5)*300;
+          const y=innerHeight/2+(Math.random()-0.5)*300;
+          fireworks.push(new Firework(x,y));
+        }
+      }
     }
 
     /* ---------- EVENTOS ---------- */
     modeSelect.onchange=()=>{
-      currentMode=modeSelect.value; score=totalQuestions=0; translateUI();
+      currentMode=modeSelect.value;
+      score=totalQuestions=0;
+      translateUI();
       rangeContainer.style.display=currentMode==="normal"?"block":"none";
       displayQuestion();
     };
-    rangeSlider.oninput=()=>{maxRange=parseInt(rangeSlider.value); rangeValue.textContent=`1 - ${maxRange}`; displayQuestion();};
-    langToggle.onclick=()=>{currentLang=currentLang==="pt"?"en":"pt"; translateUI(); displayQuestion();};
-    darkToggle.onclick=()=>{document.body.classList.toggle("dark"); translateUI();};
+    rangeSlider.oninput=()=>{
+      maxRange=parseInt(rangeSlider.value);
+      rangeValue.textContent=`1 - ${maxRange}`;
+      score=totalQuestions=0;
+      displayQuestion();
+    };
+    langToggle.onclick=()=>{
+      currentLang=currentLang==="pt"?"en":"pt";
+      translateUI();
+      displayQuestion();
+    };
+    darkToggle.onclick=()=>{
+      document.body.classList.toggle("dark");
+      translateUI();
+    };
     volumeSlider.oninput=()=>{volume=parseFloat(volumeSlider.value);};
 
     /* ---------- INÍCIO ---------- */
@@ -343,72 +412,43 @@
     rangeContainer.style.display="none";
     displayQuestion();
 
-    /* ---------- FOGOS (mesmo código de antes) ---------- */
-    const canvas=document.getElementById("fireworks-canvas"), ctx=canvas.getContext("2d");
-    window.onresize=()=>{canvas.width=innerWidth; canvas.height=innerHeight};
+    /* ---------- FOGOS ---------- */
+    const canvas=document.getElementById("fireworks-canvas"),ctx=canvas.getContext("2d");
+    window.onresize=()=>{canvas.width=innerWidth;canvas.height=innerHeight};
     window.onresize();
     let fireworks=[];
-   class Firework {
-  constructor(x, y) {
-    this.p = [];
-    for (let i = 0; i < 40; i++) {
-      this.p.push({
-        x,
-        y,
-        a: Math.random() * 2 * Math.PI,
-        speed: Math.random() * 5 + 2,
-        r: Math.random() * 2 + 1,
-        alpha: 1,
-        d: 0.02 + Math.random() * 0.03, // desaparecer mais rápido
-        color: `hsl(${Math.random() * 360}, 100%, 70%)`
-      });
+    class Firework{
+      constructor(x,y){
+        this.p=[];
+        for(let i=0;i<40;i++){
+          this.p.push({x,y,a:Math.random()*2*Math.PI,speed:Math.random()*5+2,r:Math.random()*2+1,alpha:1,d:.02+Math.random()*0.03,color:`hsl(${Math.random()*360},100%,70%)`});
+        }
+      }
+      update(){
+        this.p.forEach(o=>{
+          o.x+=Math.cos(o.a)*o.speed;
+          o.y+=Math.sin(o.a)*o.speed;
+          o.speed*=0.95;
+          o.alpha-=o.d;
+        });
+        this.p=this.p.filter(o=>o.alpha>0);
+        return this.p.length>0;
+      }
+      draw(){
+        this.p.forEach(o=>{
+          ctx.beginPath();
+          ctx.arc(o.x,o.y,o.r,0,2*Math.PI);
+          const[r,g,b]=hslToRgb(o.color);
+          ctx.fillStyle=`rgba(${r},${g},${b},${o.alpha})`;
+          ctx.fill();
+        });
+      }
     }
-  }
-  update() {
-    this.p.forEach(o => {
-      o.x += Math.cos(o.a) * o.speed;
-      o.y += Math.sin(o.a) * o.speed;
-      o.speed *= 0.95;
-      o.alpha -= o.d;
-    });
-    this.p = this.p.filter(o => o.alpha > 0);
-    return this.p.length > 0;
-  }
-  draw() {
-    this.p.forEach(o => {
-      ctx.beginPath();
-      ctx.arc(o.x, o.y, o.r, 0, 2 * Math.PI);
-      const [r, g, b] = hslToRgb(o.color);
-      ctx.fillStyle = `rgba(${r},${g},${b},${o.alpha})`;
-      ctx.fill();
-    });
-  }
-}
-
     function hslToRgb(h){const m=h.match(/\d+/g);if(!m)return[255,255,255];const H=+m[0],C=(1-Math.abs(2*(+m[2]/100)-1))*(+m[1]/100),X=C*(1-Math.abs((H/60)%2-1)),m0=(+m[2]/100)-C/2;let r=0,g=0,b=0;
       if(H<60)[r,g]=[C,X];else if(H<120)[r,g]=[X,C];else if(H<180)[g,b]=[C,X];else if(H<240)[g,b]=[X,C];else if(H<300)[r,b]=[X,C];else[r,b]=[C,X];
       return[Math.round((r+m0)*255),Math.round((g+m0)*255),Math.round((b+m0)*255)]}
     function loop(){ctx.clearRect(0,0,canvas.width,canvas.height);fireworks=fireworks.filter(f=>f.update());fireworks.forEach(f=>f.draw());requestAnimationFrame(loop)}
     loop();
-  // Substitua esta parte final do seu script:
-
-function play(type){
-  const snd = type === "correct" ? soundCorrect : soundWrong;
-  snd.volume = volume;
-  snd.currentTime = 0;
-  snd.play();
-
-  if (type === "correct" && document.body.classList.contains("dark")) {
-    // Lança múltiplos fogos com efeito visual mais intenso
-    for (let i = 0; i < 6; i++) {
-      const x = window.innerWidth / 2 + (Math.random() - 0.5) * 300;
-      const y = window.innerHeight / 2 + (Math.random() - 0.5) * 300;
-      fireworks.push(new Firework(x, y));
-    }
-  }
-}
-
-
   </script>
 </body>
 </html>
