@@ -205,10 +205,11 @@
     for (let d = 1; d <= 31; d++) {
       const jpKanji = extendedNumbers.find(e => e.num === d)?.jp || d.toString();
       const jpDay = jpKanji + "日";
-      const special = {
-        1:"ついたち",2:"ふつか",3:"みっか",4:"よっか",5:"いつか",6:"むいか",7:"なのか",8:"ようか",
-        9:"ここのか",10:"とおか",14:"じゅうよっか",20:"はつか",24:"にじゅうよっか"
-      };
+	const special = {
+  1:"ついたち",2:"ふつか",3:"みっか",4:"よっか",5:"いつか",6:"むいか",7:"なのか",8:"ようか",
+  9:"ここのか",10:"とおか",14:"じゅうよっか",17:"じゅうしちにち",19:"じゅうくにち",20:"はつか",24:"にじゅうよっか"
+};
+
       const hiraDay = special[d] || (extendedNumbers.find(e=>e.num===d)?.hira + "にち");
       const ptLabel = `dia ${d}º`;
       const enLabel = `${d}${ordinalSuffixEN(d)} day`;
